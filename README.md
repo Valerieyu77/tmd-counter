@@ -4,7 +4,7 @@
 
 ## 安装（发给朋友时把这段一起发）
 
-1. 到 [Releases](https://github.com/Valerieyu77/tmd-counter/releases/latest) 下载 `他妈的记录器.zip`，解压，把 app 拖进“应用程序”文件夹。
+1. 到 [Releases](https://github.com/Valerieyu77/tmd-counter/releases/latest) 下载 `tmd-counter.zip`，解压，把 app 拖进“应用程序”文件夹。
 2. 第一次打开：**右键 → 打开 → 打开**。（没有苹果开发者签名，直接双击会被拦。）
    还是打不开的话，在终端运行：
    `xattr -dr com.apple.quarantine /Applications/他妈的记录器.app`

@@ -4,12 +4,16 @@
 
 ## 安装（发给朋友时把这段一起发）
 
-1. 到 [Releases](https://github.com/Valerieyu77/tmd-counter/releases/latest) 下载 `tmd-counter.zip`，解压，把 app 拖进“应用程序”文件夹。
-2. 第一次打开：**右键 → 打开 → 打开**。（没有苹果开发者签名，直接双击会被拦。）
-   还是打不开的话，在终端运行：
-   `xattr -dr com.apple.quarantine /Applications/他妈的记录器.app`
-3. 系统会提示授予“辅助功能”权限：去 系统设置 → 隐私与安全性 → 辅助功能，把它打开。
-4. 菜单栏出现 `🤬 0` 就说明在工作了。
+1. 到 [Releases](https://github.com/Valerieyu77/tmd-counter/releases/latest) 下载 `tmd-counter.zip`，双击解压，把“他妈的记录器”拖进“应用程序”文件夹。
+2. 打开终端，粘贴下面这行并回车（这个 app 没有苹果开发者签名，这一步是让 macOS 放行）：
+   ```
+   xattr -dr com.apple.quarantine /Applications/他妈的记录器.app
+   ```
+   不想用终端也可以：先双击打开一次，系统会提示“无法验证开发者”，点“完成”。然后去 系统设置 → 隐私与安全性，
+   拉到最下面点“仍要打开”。
+3. 打开 app，系统会提示授予“辅助功能”权限：去 系统设置 → 隐私与安全性 → 辅助功能，把“他妈的记录器”打开。
+4. 菜单栏右上角出现 `🤬 0` 就说明在工作了。看不到的话，可能是被刘海挡住了：按住 ⌘ 把别的图标拖走腾个位置。
+5. 想开机自动运行：点 🤬 → 开机自动启动。
 
 ## 用法
 

@@ -10,22 +10,35 @@ import Carbon
 // MARK: - 匹配
 
 enum Swear {
-    /// 顺序决定优先级：先匹配“他妈的”，避免被拆成“他妈”+“妈的”重复计数。
-    /// “他妈妈”（他的妈妈）不算；“我妈的/咱妈的/姥姥妈的”这类不算。
-    static let regex = try! NSRegularExpression(pattern:
-        "他[妈媽]的|他[妈媽](?![妈媽])|(?<![我咱俺姥奶舅姨妈媽])[妈媽]的")
+    /// (统计名, 正则)。顺序决定优先级：长的写前面，避免“他妈的”被拆成“他妈”+“妈的”。
+    /// 想加词就往这里加一行。
+    static let list: [(String, String)] = [
+        ("他妈的", "他[妈媽]的"),
+        ("妈的蛋", "[妈媽]的蛋"),
+        ("他妈",   "他[妈媽](?![妈媽])"),                     // “他妈妈”不算
+        ("妈的",   "(?<![我咱俺姥奶舅姨妈媽])[妈媽]的"),       // “我妈的手机”不算
+        ("卧槽",   "卧槽|卧艹"),
+        ("握草",   "握草"),
+        ("傻逼",   "傻[逼屄]"),
+        ("神经病", "神[经經]病"),
+        ("贱人",   "[贱賤]人"),
+        ("个蛋",   "(?<![一两二三四五六七八九十几每这那半0-9])[个個]蛋(?![糕黄白挞饼卷炒汤羹])"), // “一个蛋”“个蛋糕”不算
+    ]
 
-    static func normalize(_ s: String) -> String {
-        s.replacingOccurrences(of: "媽", with: "妈")
-    }
+    static let words = list.map(\.0)
+
+    static let regex = try! NSRegularExpression(pattern: list.map { "(\($0.1))" }.joined(separator: "|"))
 
     static func find(_ text: String) -> [String] {
-        let ns = text as NSString
-        return regex.matches(in: text, range: NSRange(location: 0, length: ns.length))
-            .map { normalize(ns.substring(with: $0.range)) }
+        regex.matches(in: text, range: NSRange(location: 0, length: (text as NSString).length)).compactMap { m in
+            (1...list.count).first { m.range(at: $0).location != NSNotFound }.map { list[$0 - 1].0 }
+        }
     }
 
-    static let words = ["他妈的", "妈的", "他妈"]
+    /// 只列出有次数的词，按次数排
+    static func summary(_ counts: [String: Int], sep: String) -> String {
+        counts.sorted { $0.value > $1.value }.map { "\($0.key) \($0.value)" }.joined(separator: sep)
+    }
 }
 
 // MARK: - 场景
@@ -419,6 +432,8 @@ input{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:8px
 <div class="card"><h3>语录</h3><input id="search" placeholder="搜索原句 / app"><div id="quotes"></div></div>
 </div><script>
 const ALL=__DATA__;
+const WORDS=[...new Set(ALL.flatMap(r=>r.words))].sort((a,b)=>b.length-a.length);
+const mark=t=>WORDS.length?t.replace(new RegExp(WORDS.join("|"),"g"),"<mark>$&</mark>"):t;
 const ranges={今天:1,"7 天":7,"30 天":30,全部:0};let cur="今天";
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function pick(){const d=ranges[cur];if(!d)return ALL;const s=new Date();s.setHours(0,0,0,0);s.setDate(s.getDate()-(d-1));return ALL.filter(r=>r.ts*1000>=s)}
@@ -441,7 +456,7 @@ function render(){
  quotes(R)}
 function quotes(R){const q=document.getElementById("search").value.trim();
  const L=R.filter(r=>!q||(r.text||"").includes(q)||r.app.includes(q)||(r.window||"").includes(q)).slice().reverse().slice(0,200);
- document.getElementById("quotes").innerHTML=L.length?L.map(r=>`<div class="q"><div>${r.text?esc(r.text).replace(/他妈的|他妈|妈的/g,"<mark>$&</mark>"):"<i>（未保存原句）</i>"}</div><div class="m">${new Date(r.ts*1000).toLocaleString()} · ${esc(r.app)}${r.window&&r.window!==r.app?" · "+esc(r.window):""} · ${esc(r.scene)}</div></div>`).join(""):'<div class="empty">这段时间你很文明</div>'}
+ document.getElementById("quotes").innerHTML=L.length?L.map(r=>`<div class="q"><div>${r.text?mark(esc(r.text)):"<i>（未保存原句）</i>"}</div><div class="m">${new Date(r.ts*1000).toLocaleString()} · ${esc(r.app)}${r.window&&r.window!==r.app?" · "+esc(r.window):""} · ${esc(r.scene)}</div></div>`).join(""):'<div class="empty">这段时间你很文明</div>'}
 document.getElementById("search").oninput=()=>quotes(pick());render();
 </script></body></html>
 """#
@@ -464,6 +479,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu(); menu.delegate = self; item.menu = menu
         monitor.onHit = { [weak self] s, words in self?.record(s, words) }
         refreshTitle()
+        debugLog("launch trusted=\(AXIsProcessTrusted())")
 
         if !monitor.start() {
             // 首次运行：弹出系统授权框，授权后自动开始
@@ -502,7 +518,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if total > 0 {
             var w: [String: Int] = [:], sc: [String: Int] = [:]
             for r in today { for x in r.words { w[x, default: 0] += 1 }; sc[r.scene.rawValue, default: 0] += r.words.count }
-            info(menu, Swear.words.map { "\($0) \(w[$0] ?? 0)" }.joined(separator: " · "))
+            info(menu, Swear.summary(w, sep: " · "))
             info(menu, ["聊天", "AI", "其他"].map { "\($0) \(sc[$0] ?? 0)" }.joined(separator: " · "))
             menu.addItem(.separator())
             info(menu, "最近：")
@@ -566,9 +582,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             sc[r.scene.rawValue, default: 0] += r.words.count
             hours[Calendar.current.component(.hour, from: r.date)] += r.words.count
         }
-        var lines = ["🤬 今日他妈的战报", "共 \(total) 次"]
+        var lines = ["🤬 今日脏话战报", "共 \(total) 次"]
         if total > 0 {
-            lines.append(Swear.words.map { "\($0) \(w[$0] ?? 0)" }.joined(separator: " / "))
+            lines.append(Swear.summary(w, sep: " / "))
             lines.append("微信等聊天 \(sc["聊天"] ?? 0) 次，骂 AI \(sc["AI"] ?? 0) 次")
             if let peak = hours.indices.max(by: { hours[$0] < hours[$1] }) { lines.append("最暴躁时段：\(peak) 点") }
         } else {

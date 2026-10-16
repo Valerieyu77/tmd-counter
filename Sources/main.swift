@@ -478,10 +478,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let menu = NSMenu(); menu.delegate = self; item.menu = menu
         monitor.onHit = { [weak self] s, words in self?.record(s, words) }
-        refreshTitle()
         debugLog("launch trusted=\(AXIsProcessTrusted())")
 
-        if !monitor.start() {
+        let started = monitor.start()
+        refreshTitle()   // 要在 start 之后，否则会一直显示 ⚠️
+        if !started {
             // 首次运行：弹出系统授权框，授权后自动开始
             let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             AXIsProcessTrustedWithOptions(opts)
